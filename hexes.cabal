@@ -2,17 +2,10 @@ cabal-version:       >= 2.0
 
 name:                hexes
 version:             0.1.0.0
--- synopsis:
--- description:
--- bug-reports:
--- license:
-license-file:        LICENSE
+license-file:        LICENCE
 author:              Colm Baston
 maintainer:          colm@colmbaston.uk
--- copyright:
--- category:
 build-type:          Simple
-extra-source-files:  CHANGELOG.md
 
 executable hexes
   main-is:             Main.hs
