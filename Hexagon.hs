@@ -65,7 +65,7 @@ cubeRing 0 c       = [c]
 cubeRing r (x,y,z) = concat $ take 6 $ iterate (map (cubeRotateR (x,y,z))) $ take r (iterate (\(x',y',z') -> (x',y'+1,z'-1)) (x+fromIntegral r,y-fromIntegral r,z))
 
 cubeSpiral :: Int -> Cube -> [Cube]
-cubeSpiral r c = concatMap (flip cubeRing c) [0..r]
+cubeSpiral r c = concatMap (`cubeRing` c) [0..r]
 
 axialRing :: Int -> Axial -> [Axial]
 axialRing r = map cubeToAxial . cubeRing r . axialToCube

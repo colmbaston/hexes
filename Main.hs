@@ -22,7 +22,7 @@ main = do w <- getRandomWorld
             (\t w -> return $ w { time = time w + t })
 
 getRandomWorld :: IO World
-getRandomWorld = do ts <- fmap M.fromList $ mapM (\p -> randomTile >>= \t -> return (p,t)) (axialSpiral 100 (0,0))
+getRandomWorld = do ts <- M.fromList <$> mapM (\p -> (if p == (0,0) then pure Land else randomTile) >>= \t -> pure (p,t)) (axialSpiral 100 (0,0))
                     pure (World (0,0) 0 ts (visibleFrom (0,0) ts) S.empty)
 
 data Tile = Land | Water deriving (Eq,Ord)
@@ -37,7 +37,7 @@ tileColor Water = blue
 
 animation :: Float -> (Float,Float) -> Tile -> Picture
 animation _ _ Land  = blank
-animation t p Water = uncurry translate (axialToPixel p) $ (if odd (round (snd p)) then id else scale (-1) 1) $ (drawFun sin 20 t (size*2*w) (size/4))
+animation t p Water = uncurry translate (axialToPixel p) $ (if odd (round (snd p)) then id else scale (-1) 1) (drawFun sin 20 t (size*2*w) (size/4))
 
 drawVisibleTile :: Float -> (Float,Float) -> Tile -> Picture
 drawVisibleTile t p b = pictures [color (tileColor b) (axialHexagon polygon p), color white $ animation t p b, axialHexagon lineLoop p]
@@ -50,20 +50,21 @@ axialHexagon f c = case axialToPixel c of
                      (x,y) -> f [(x-size*w,y-size*0.5),(x,y-size),(x+size*w,y-size*0.5),(x+size*w,y+size*0.5),(x,y+size),(x-size*w,y+size*0.5)]
 
 handler :: Event -> World -> World
-handler (EventMotion p)                                                 w = w
 handler (EventKey (MouseButton LeftButton) Down (Modifiers Up Up Up) p) w = let p' = pixelToAxial p in
-                                                                              if p' `elem` S.fromList (axialAdjacents (selected w)) `S.intersection` M.keysSet (tiles w) then let new = visibleFrom p' (tiles w) in w { selected = p',
-                                                                                                                                                                                                                        visible  = new,
-                                                                                                                                                                                                                        visited  = visited w `S.union` visible w `S.difference` new } else w
-handler (EventKey (SpecialKey  KeyEsc)     Down (Modifiers Up Up Up) _) w = w { selected = (0,0) }
-handler _                                                               w = w
+                                                                              if p' `notElem` S.fromList (axialAdjacents (selected w)) || M.lookup p' (tiles w) /= Just Land
+                                                                                 then w
+                                                                                 else let new = visibleFrom p' (tiles w) in
+                                                                                        w { selected = p',
+                                                                                            visible  = new,
+                                                                                            visited  = visited w `S.union` visible w `S.difference` new }
+handler _ w = w
 
 data World = World { selected :: (Float,Float), time :: Float, tiles :: Map (Float,Float) Tile, visible :: Set (Float,Float), visited :: Set (Float,Float) }
 
 drawWorld :: World -> Picture
-drawWorld w = pictures ((map (\p -> drawVisibleTile (time w) p (fromJust $ M.lookup p (tiles w))) $ S.toList (visible w))
-                     ++ (map (\p -> drawVisitedTile          p (fromJust $ M.lookup p (tiles w))) $ S.toList (visited w))
-                     ++ [color red $ uncurry translate (axialToPixel (selected w)) $ thickCircle 0 (size / 2)])
+drawWorld w = pictures (map (\p -> drawVisibleTile (time w) p (fromJust $ M.lookup p (tiles w))) (S.toList (visible w))
+                    ++  map (\p -> drawVisitedTile          p (fromJust $ M.lookup p (tiles w))) (S.toList (visited w))
+                    ++ [(color red . uncurry translate (axialToPixel (selected w))) (thickCircle 0 (size / 2))])
 
 drawFun :: (Float -> Float) -> Int -> Float -> Float -> Float -> Picture
 drawFun f n t x y = line (take (n+1) $ zip xs vs)
